@@ -1,0 +1,61 @@
+import requests
+
+payload = {
+    'from': '/bbs/Gossiping/index.html',
+    'yes' : 'yes'
+}
+
+headers = {
+  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
+}
+
+rs = requests.Session()
+rs.post('https://www.ptt.cc/ask/over18', data=payload, headers=headers)
+res = rs.get('https://www.ptt.cc/bbs/Gossiping/index.html', headers=headers)
+
+from bs4 import BeautifulSoup
+soup = BeautifulSoup(res.text, 'html.parser')
+
+# 填入每篇文章的class name
+items = soup.find_all('div', class_='r-ent')
+
+#將每篇文章網址抓出來
+main_url = 'https://www.ptt.cc/'
+result = []
+for item in items:
+    # 填入每篇文章title的class name
+    title = item.find('div', class_='title').text.strip()
+    # 填入每篇文章url的tag和attribute
+    url = main_url + item.find('a')['href']
+    result.append([title, url])
+
+#透過文章網址將內文一起抓出來
+content_list = []
+for row in result:
+    title, url = row
+#填入session資訊並且透過request來得到HTML
+    rs_content = requests.Session()
+    rs_content.post('https://www.ptt.cc/ask/over18', data=payload, headers=headers)
+    r = rs.get(url, headers=headers)
+    soup = BeautifulSoup(r.text, 'html.parser')
+# 填入正確的tag和名稱
+    items = soup.find('div', class_='r-ent')
+    content = soup.find('div', id = 'main-content').text
+    content_list.append([title, url, content])
+
+#存檔
+import pandas as pd
+pd.DataFrame(content_list, columns=['title', 'url', 'content']).to_excel('content.xlsx')
+
+#用程式碼抓取下一頁的內容 透過抓取按鈕「上頁」的網址，來獲得下一頁的 HTML ，並且觀察看看每頁的網址的改變
+import requests
+from bs4 import BeautifulSoup
+
+ptturl = 'https://www.ptt.cc/bbs/Gossiping/index.html'
+for i in range(5):
+    r = requests.get(ptturl, headers=headers, cookies={'over18':'1'})
+    soup = BeautifulSoup(r.text, 'html.parser')
+    div_page = soup.find('div', class_='btn-group btn-group-paging')
+    main_url = 'https://www.ptt.cc'
+    next_page = main_url + div_page.find_all('a')[1]['href']
+    print(next_page)
